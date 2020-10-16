@@ -108,6 +108,7 @@ public abstract class DurableTaskStep extends Step implements EnvVarsFilterableB
     private String encoding;
     private boolean returnStatus;
     private String label;
+    private String storeOutput;
 
     protected abstract DurableTask task();
 
@@ -141,6 +142,14 @@ public abstract class DurableTaskStep extends Step implements EnvVarsFilterableB
 
     public String getLabel() {
         return label;
+    }
+
+    @DataBoundSetter public void setStoreOutput(String storeOutput) {
+        this.storeOutput = storeOutput;
+    }
+
+    public String getStoreOutput() {
+        return storeOutput;
     }
 
     @Override public StepExecution start(StepContext context) throws Exception {
@@ -283,6 +292,8 @@ public abstract class DurableTaskStep extends Step implements EnvVarsFilterableB
         private boolean returnStdout; // serialized default is false
         /** Whether the exit code of the process is to become the return value of the step. */
         private boolean returnStatus; // serialized default is false
+        /** Redirect output to this file persistently instead to a temporary outputfile. */
+        private String storeOutput;
         /** Whether we are using the newer push mode. */
         private boolean watching; // serialized default is false
         /** Only used when {@link #watching}, if after {@link #WATCHING_RECURRENCE_PERIOD} comes around twice {@link #exited} has yet to be called. */
@@ -300,12 +311,16 @@ public abstract class DurableTaskStep extends Step implements EnvVarsFilterableB
         @Override public boolean start() throws Exception {
             returnStdout = step.returnStdout;
             returnStatus = step.returnStatus;
+            storeOutput = step.storeOutput;
             StepContext context = getContext();
             ws = context.get(FilePath.class);
             node = FilePathUtils.getNodeName(ws);
             DurableTask durableTask = step.task();
             if (returnStdout) {
                 durableTask.captureOutput();
+            }
+            if (storeOutput != null) {
+                durableTask.storeOutput(storeOutput);
             }
             TaskListener listener = listener();
             if (step.encoding != null) {
